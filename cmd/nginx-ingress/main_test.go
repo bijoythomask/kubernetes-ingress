@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 )
 
@@ -27,37 +28,27 @@ func TestValidateStatusPort(t *testing.T) {
 func TestParseNginxStatusAllowCIDRs(t *testing.T) {
 	var badCIDRs = []struct {
 		input         string
-		expected      []string
 		expectedError error
 	}{
 		{
 			"earth, ,,furball",
-			[]string{},
 			errors.New("invalid IP address: earth"),
 		},
 		{
 			"127.0.0.1,10.0.1.0/24, ,,furball",
-			[]string{"127.0.0.1", "10.0.1.0/24"},
 			errors.New("invalid CIDR address: an empty string is an invalid CIDR block or IP address"),
 		},
 		{
 			"false",
-			[]string{},
 			errors.New("invalid IP address: false"),
 		},
 	}
 	for _, badCIDR := range badCIDRs {
-		splitArray, err := parseNginxStatusAllowCIDRs(badCIDR.input)
+		_, err := parseNginxStatusAllowCIDRs(badCIDR.input)
 		if err == nil {
 			t.Errorf("parseNginxStatusAllowCIDRs(%q) returned no error when it should have returned error %q", badCIDR.input, badCIDR.expectedError)
 		} else if err.Error() != badCIDR.expectedError.Error() {
 			t.Errorf("parseNginxStatusAllowCIDRs(%q) returned error %q when it should have returned error %q", badCIDR.input, err, badCIDR.expectedError)
-		}
-
-		for _, expectedEntry := range badCIDR.expected {
-			if !contains(splitArray, expectedEntry) {
-				t.Errorf("parseNginxStatusAllowCIDRs(%q) did not include %q but returned %q", badCIDR.input, expectedEntry, splitArray)
-			}
 		}
 	}
 
@@ -79,18 +70,15 @@ func TestParseNginxStatusAllowCIDRs(t *testing.T) {
 		},
 	}
 	for _, goodCIDR := range goodCIDRs {
-		splitArray, err := parseNginxStatusAllowCIDRs(goodCIDR.input)
+		result, err := parseNginxStatusAllowCIDRs(goodCIDR.input)
 		if err != nil {
 			t.Errorf("parseNginxStatusAllowCIDRs(%q) returned an error when it should have returned no error: %q", goodCIDR.input, err)
 		}
 
-		for _, expectedEntry := range goodCIDR.expected {
-			if !contains(splitArray, expectedEntry) {
-				t.Errorf("parseNginxStatusAllowCIDRs(%q) did not include %q but returned %q", goodCIDR.input, expectedEntry, splitArray)
-			}
+		if !reflect.DeepEqual(result, goodCIDR.expected) {
+			t.Errorf("parseNginxStatusAllowCIDRs(%q) returned %v expected %v: ", goodCIDR.input, result, goodCIDR.expected)
 		}
 	}
-
 }
 
 func TestValidateCIDRorIP(t *testing.T) {
